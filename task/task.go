@@ -39,3 +39,6 @@ type TaskEvent struct {
 	Timestamp time.Time
 	Task      Task
 }
+
+type Config struct {
+}
