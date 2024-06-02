@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/google/uuid"
 	"github.com/jpiechowka/circus/manager"
 	"github.com/jpiechowka/circus/node"
@@ -12,8 +13,10 @@ import (
 )
 
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
+
 	t := task.Task{
-		Id:     uuid.New(),
+		ID:     uuid.New(),
 		Name:   "task-test",
 		State:  task.Pending,
 		Image:  "image-test",
@@ -22,14 +25,14 @@ func main() {
 	}
 
 	te := task.TaskEvent{
-		Id:        uuid.New(),
+		ID:        uuid.New(),
 		State:     task.Pending,
 		Timestamp: time.Now(),
 		Task:      t,
 	}
 
-	fmt.Printf("task: %v\n", t)
-	fmt.Printf("task event: %v\n", te)
+	log.Printf("task: %v\n", t)
+	log.Printf("task event: %v\n", te)
 
 	w := worker.Worker{
 		Name:  "worker-test",
@@ -37,7 +40,7 @@ func main() {
 		Db:    make(map[uuid.UUID]*task.Task),
 	}
 
-	fmt.Printf("worker: %v\n", w)
+	log.Printf("worker: %v\n", w)
 
 	w.CollectStats()
 	w.RunTask()
@@ -51,7 +54,7 @@ func main() {
 		Workers:      []string{w.Name},
 	}
 
-	fmt.Printf("manager: %v\n", m)
+	log.Printf("manager: %v\n", m)
 
 	m.SelectWorker()
 	m.UpdateTasks()
@@ -66,5 +69,55 @@ func main() {
 		Role:   "worker",
 	}
 
-	fmt.Printf("node: %v\n", n)
+	log.Printf("node: %v\n", n)
+	log.Printf("Create test contaner\n")
+	dockerTask, result := createContainer()
+	if result.Error != nil {
+		log.Fatalf("%v\n", result.Error)
+	}
+
+	time.Sleep(time.Second * 13)
+	log.Printf("Stopping container %s\n", result.ContainerID)
+	result = stopContainer(dockerTask, result.ContainerID)
+	if result.Error != nil {
+		log.Fatalf("%v\n", result.Error)
+	}
+}
+
+func createContainer() (*task.Docker, *task.DockerResult) {
+	conf := task.Config{
+		Name:  "test-container",
+		Image: "postgres:latest",
+		Env: []string{
+			"POSTGRES_USER=circus",
+			"POSTGRES_PASSWORD=p4ssw0rd",
+		},
+	}
+
+	dockerClient, _ := client.NewClientWithOpts(client.FromEnv)
+	docker := task.Docker{
+		Client: dockerClient,
+		Config: conf,
+	}
+
+	result := docker.Run()
+	if result.Error != nil {
+		log.Printf("%v\n", result.Error)
+		return nil, &task.DockerResult{Error: result.Error}
+	}
+
+	log.Printf("Container %s is running with config %v\n", result.ContainerID, conf)
+
+	return &docker, &result
+}
+
+func stopContainer(docker *task.Docker, containerID string) *task.DockerResult {
+	result := docker.Stop(containerID)
+	if result.Error != nil {
+		log.Printf("%v\n", result.Error)
+		return &task.DockerResult{Error: result.Error}
+	}
+
+	log.Printf("Container %s has been stopped and removed\n", result.ContainerID)
+	return &result
 }

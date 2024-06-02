@@ -1,7 +1,7 @@
 package manager
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/jpiechowka/circus/task"
@@ -17,13 +17,13 @@ type Manager struct {
 }
 
 func (m *Manager) SelectWorker() {
-	fmt.Println("Implement me: select an appropriate worker")
+	log.Println("Implement me: select an appropriate worker")
 }
 
 func (m *Manager) UpdateTasks() {
-	fmt.Println("Implement me: update tasks")
+	log.Println("Implement me: update tasks")
 }
 
 func (m *Manager) SendWork() {
-	fmt.Println("Implement me: send work to workers")
+	log.Println("Implement me: send work to workers")
 }
